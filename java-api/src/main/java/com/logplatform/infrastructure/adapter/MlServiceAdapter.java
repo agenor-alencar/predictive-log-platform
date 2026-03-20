@@ -11,8 +11,13 @@ import java.time.Duration;
 import java.util.Map;
 
 /**
- * Infrastructure adapter: implements MlServicePort via HTTP (WebClient).
- * Domain doesn't know about HTTP — this adapter translates.
+ * Adaptador de Infraestrutura: Implementa a porta 'MlServicePort' via HTTP (WebClient).
+ * 
+ * Teoria para aula:
+ * - Desacoplamento: O Domínio não sabe que o ML está em outro servidor via HTTP. 
+ *   Ele apenas chama a interface, e este adaptador resolve a comunicação real.
+ * - WebClient: Usado aqui para fazer o POST no Python e converter o JSON de resposta 
+ *   de volta para objetos Java.
  */
 @Component
 @Slf4j

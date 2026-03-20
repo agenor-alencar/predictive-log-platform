@@ -3,6 +3,13 @@ package com.logplatform.dto;
 import lombok.*;
 import java.util.Map;
 
+/**
+ * DTO de Resposta do Sumário Estatístico.
+ * 
+ * Teoria para aula:
+ * - Estatística Descritiva: Transforma milhares de linhas de log em informações 
+ *   decisivas como Percentil 95 (P95) e taxa de erro global.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

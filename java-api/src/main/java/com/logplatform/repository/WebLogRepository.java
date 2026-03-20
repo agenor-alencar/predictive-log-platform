@@ -7,6 +7,15 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+/**
+ * Repositório JPA para a entidade WebLog com Consultas Customizadas.
+ * 
+ * Teoria para aula:
+ * - @Query (JPQL): Linguagem de consulta do Java que parece SQL, mas opera sobre 
+ *   as classes (Objetos) e não sobre as tabelas diretamente.
+ * - Agregação: Usamos GROUP BY e funções como AVG e COUNT para transformar logs 
+ *   individuais em métricas de alto nível (ex: média de tempo de resposta).
+ */
 @Repository
 public interface WebLogRepository extends JpaRepository<WebLog, Long> {
 
@@ -20,8 +29,8 @@ public interface WebLogRepository extends JpaRepository<WebLog, Long> {
     Double findAverageResponseTime();
 
     @Query("SELECT HOUR(w.timestamp), COUNT(w) " +
-           "FROM WebLog w GROUP BY HOUR(w.timestamp) " +
-           "ORDER BY COUNT(w) DESC")
+            "FROM WebLog w GROUP BY HOUR(w.timestamp) " +
+            "ORDER BY COUNT(w) DESC")
     List<Object[]> countByHour();
 
     @Query("SELECT w.responseTimeMs FROM WebLog w ORDER BY w.responseTimeMs")

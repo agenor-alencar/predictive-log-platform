@@ -4,6 +4,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import java.util.Map;
 
+/**
+ * DTO de Resposta da Predição de Tempo de Resposta.
+ * 
+ * Teoria para aula:
+ * - Além do valor previsto, trazemos o "Confidence Interval" (Intervalo de Confiança), 
+ *   que indica a margem de erro estatística do modelo de regressão.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

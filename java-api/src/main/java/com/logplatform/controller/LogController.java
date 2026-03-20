@@ -11,6 +11,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * Controller responsável pela Ingestão de Logs.
+ * 
+ * Teoria para aula:
+ * - Este endpoint aceita arquivos CSV via 'multipart/form-data', que é o padrão para upload de arquivos.
+ * - Ingestão de Dados: É o processo de obter dados de fontes externas e trazê-los para o sistema.
+ * - Aqui, transformamos um arquivo estático (CSV) em eventos vivos no banco de dados e no Kafka.
+ */
 @RestController
 @RequestMapping("/logs")
 @RequiredArgsConstructor
@@ -24,14 +32,18 @@ public class LogController {
     @Operation(summary = "Upload CSV log file", description = "Upload a CSV file containing web log entries for ingestion")
     public ResponseEntity<LogUploadResponse> uploadCsv(@RequestParam("file") MultipartFile file) {
         try {
+            // 1. Delega o processamento pesado do CSV para o Service (Padrão de Camadas)
             int[] result = logIngestionService.uploadCsv(file);
+            
+            // 2. Monta a resposta de sucesso com o resumo do processamento
             return ResponseEntity.ok(LogUploadResponse.builder()
                     .status("success")
                     .recordsProcessed(result[0])
                     .recordsFailed(result[1])
-                    .message(String.format("Successfully processed %d records (%d failed)", result[0], result[1]))
+                    .message(String.format("Processado com sucesso: %d registros (%d falhas)", result[0], result[1]))
                     .build());
         } catch (IllegalArgumentException e) {
+            // 3. Erro de validação (ex: arquivo vazio ou colunas erradas) -> status 400
             return ResponseEntity.badRequest().body(LogUploadResponse.builder()
                     .status("error")
                     .recordsProcessed(0)
@@ -39,6 +51,7 @@ public class LogController {
                     .message(e.getMessage())
                     .build());
         } catch (Exception e) {
+            // 4. Erros inesperados no servidor -> status 500
             log.error("CSV upload failed", e);
             return ResponseEntity.internalServerError().body(LogUploadResponse.builder()
                     .status("error")

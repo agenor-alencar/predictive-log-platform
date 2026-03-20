@@ -3,8 +3,12 @@ package com.logplatform.domain.model;
 import java.time.LocalDateTime;
 
 /**
- * Pure domain model for web log entries.
- * No framework dependencies — no JPA, no Spring, no Lombok.
+ * Modelo de Domínio para Entradas de Log Web.
+ * 
+ * Teoria para aula:
+ * - Entidade de Domínio: Representa o objeto real que estamos manipulando (um Log).
+ * - Independência: Esta classe não possui anotações de banco de dados (JPA) ou de 
+ *   frameworks (Lombok). Isso a torna "pura" e fácil de mover para outros projetos.
  */
 public class WebLogDomain {
 

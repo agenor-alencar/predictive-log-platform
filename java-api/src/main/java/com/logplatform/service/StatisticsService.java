@@ -10,6 +10,17 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Serviço de Estatísticas Descritivas.
+ * 
+ * Teoria para aula:
+ * - Estatística Descritiva: Resume grandes volumes de dados em números compreensíveis (média, mediana).
+ * - Cache (@Cacheable): Como o cálculo de estatísticas em milhões de registros é pesado, 
+ *   salvamos o resultado no Redis por 30 segundos. Isso evita sobrecarregar o banco de dados 
+ *   em acessos simultâneos.
+ * - Percentil 95 (P95): Indica que 95% das requisições foram mais rápidas que esse valor. 
+ *   É a métrica de ouro para medir a experiência do usuário.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -19,6 +30,7 @@ public class StatisticsService {
 
     @Cacheable(value = "statistics", key = "'summary'")
     public StatsSummary computeSummary() {
+        // 1. Conta o total de registros para as proporções
         long totalRecords = webLogRepository.count();
 
         if (totalRecords == 0) {
@@ -37,7 +49,7 @@ public class StatisticsService {
                     .build();
         }
 
-        // Status code frequencies
+        // 2. Frequências de Status Code (Agrupamento e Contagem)
         List<Object[]> statusCounts = webLogRepository.countByStatusCode();
         Map<Integer, Long> absoluteFreq = new LinkedHashMap<>();
         Map<Integer, Double> relativeFreq = new LinkedHashMap<>();
@@ -48,25 +60,25 @@ public class StatisticsService {
             relativeFreq.put(code, Math.round((double) count / totalRecords * 10000.0) / 10000.0);
         }
 
-        // Method frequencies
+        // 3. Frequências de Métodos HTTP (GET, POST, etc)
         List<Object[]> methodCounts = webLogRepository.countByMethod();
         Map<String, Long> methodFreq = new LinkedHashMap<>();
         for (Object[] row : methodCounts) {
             methodFreq.put((String) row[0], (Long) row[1]);
         }
 
-        // Response time statistics
+        // 4. Estatísticas de Tempo de Resposta (Cálculos Matemáticos)
         List<Double> responseTimes = webLogRepository.findAllResponseTimesOrdered();
         double mean = responseTimes.stream().mapToDouble(d -> d).average().orElse(0);
         double median = computeMedian(responseTimes);
         double stdDev = computeStdDev(responseTimes, mean);
         double p95 = computePercentile(responseTimes, 95);
 
-        // Error rate
+        // 5. Taxa de Erro (Registros >= 400)
         long errorCount = webLogRepository.countByStatusCodeGreaterThanEqual(400);
         double errorRate = (double) errorCount / totalRecords;
 
-        // Peak hour
+        // 6. Horário de Pico (Hora com maior volume de requisições)
         List<Object[]> hourCounts = webLogRepository.countByHour();
         int peakHour = 0;
         long peakCount = 0;
@@ -76,6 +88,7 @@ public class StatisticsService {
             peakCount = (Long) hourCounts.get(0)[1];
         }
 
+        // 7. Agrega tudo no DTO de Resumo
         return StatsSummary.builder()
                 .totalRecords(totalRecords)
                 .statusCodeFrequencyAbsolute(absoluteFreq)
@@ -92,7 +105,8 @@ public class StatisticsService {
     }
 
     private double computeMedian(List<Double> sorted) {
-        if (sorted.isEmpty()) return 0;
+        if (sorted.isEmpty())
+            return 0;
         int n = sorted.size();
         if (n % 2 == 0) {
             return (sorted.get(n / 2 - 1) + sorted.get(n / 2)) / 2.0;
@@ -101,7 +115,8 @@ public class StatisticsService {
     }
 
     private double computeStdDev(List<Double> values, double mean) {
-        if (values.size() < 2) return 0;
+        if (values.size() < 2)
+            return 0;
         double sumSquaredDiff = values.stream()
                 .mapToDouble(v -> Math.pow(v - mean, 2))
                 .sum();
@@ -109,7 +124,8 @@ public class StatisticsService {
     }
 
     private double computePercentile(List<Double> sorted, int percentile) {
-        if (sorted.isEmpty()) return 0;
+        if (sorted.isEmpty())
+            return 0;
         int index = (int) Math.ceil(percentile / 100.0 * sorted.size()) - 1;
         index = Math.max(0, Math.min(index, sorted.size() - 1));
         return sorted.get(index);

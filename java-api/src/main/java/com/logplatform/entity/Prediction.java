@@ -4,13 +4,26 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "predictions")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+/**
+ * Entidade JPA que representa uma predição feita pelo modelo de ML.
+ * 
+ * Teoria para aula:
+ * - ORM (Object-Relational Mapping): Técnica usada para mapear objetos Java
+ * para tabelas SQL.
+ * - @Entity: Diz ao Hibernate que esta classe é uma tabela no banco de dados.
+ * - Auditoria: Salvar cada predição permite que, no futuro, possamos comparar o
+ * que a
+ * IA previu com o que realmente aconteceu, ajudando a retreinar o modelo.
+ */
+@Entity // Define que esta classe é uma entidade gerenciada pelo JPA e mapeada para uma
+        // tabela
+@Table(name = "predictions") // Especifica o nome da tabela no banco de dados para auditoria de ML
+@Getter // Lombok: Gera automaticamente todos os métodos Getters para os campos
+@Setter // Lombok: Gera automaticamente todos os métodos Setters para os campos
+@NoArgsConstructor // Lombok: Gera um construtor vazio (exigido pelo JPA)
+@AllArgsConstructor // Lombok: Gera um construtor com todos os campos
+@Builder // Lombok: Implementa o padrão de projeto Builder para criação fluenta de
+         // objetos
 public class Prediction {
 
     @Id
@@ -37,6 +50,8 @@ public class Prediction {
 
     @PrePersist
     protected void onCreate() {
+        // Recurso do JPA para preencher a data de criação automaticamente antes de
+        // salvar
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }

@@ -39,7 +39,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     ).astype(int)
 
     # ---------- HTTP Method Encoding ----------
-    method_dummies = pd.get_dummies(df["method"], prefix="method")
+    method_dummies = pd.get_dummies(df["method"], prefix="method", dtype=int)
     # Ensure all expected methods are present
     for m in ["method_GET", "method_POST", "method_PUT", "method_DELETE", "method_PATCH"]:
         if m not in method_dummies.columns:

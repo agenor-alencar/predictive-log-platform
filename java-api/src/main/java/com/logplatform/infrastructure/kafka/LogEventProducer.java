@@ -9,8 +9,13 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Publishes web log events to Kafka topic plip.logs.raw.
- * Called after CSV upload to enable real-time downstream processing.
+ * Produtor de Eventos Kafka.
+ * 
+ * Teoria para aula:
+ * - Event-Driven (Arquitetura Orientada a Eventos): Em vez de apenas salvar no banco, 
+ *   avisamos ao Kafka que um log chegou. Isso permite que outros sistemas 
+ *   (como o processador de streams) reajam a essa informação imediatamente.
+ * - KafkaTemplate: Ferramenta do Spring para enviar mensagens para tópicos específicos.
  */
 @Component
 @RequiredArgsConstructor
