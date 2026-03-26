@@ -31,7 +31,7 @@ class AnomalyDetector:
         Returns:
             Dictionary with fitting statistics.
         """
-        X = df[features].values
+        X = df[features].values.astype(float)
 
         # Compute Z-score reference statistics
         self.training_stats = {
@@ -170,7 +170,9 @@ class AnomalyDetector:
 
         # Z-score on response_time_ms
         if "response_time_ms" in df.columns:
-            z_scores = np.abs(stats.zscore(df["response_time_ms"]))
+            # Ensure series is float for stats.zscore (NumPy 2.x compatibility)
+            rt_values = df["response_time_ms"].astype(float).values
+            z_scores = np.abs(stats.zscore(rt_values))
             z_anomaly = z_scores > 3.0
         else:
             z_anomaly = np.zeros(len(df), dtype=bool)

@@ -4,13 +4,22 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "web_logs")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+/**
+ * Entidade JPA que representa um registro de log web.
+ * 
+ * Teoria para aula:
+ * - Granularidade: Cada linha do arquivo CSV enviado pelo usuário se torna um objeto 
+ *   desta classe no banco de dados.
+ * - @Table(name = "web_logs"): Define o nome da tabela física no PostgreSQL onde os 
+ *   logs brutos serão armazenados para posterior análise estatística e de ML.
+ */
+@Entity // Define que esta classe é uma entidade gerenciada pelo JPA e mapeada para uma tabela
+@Table(name = "web_logs") // Especifica o nome da tabela no banco de dados
+@Getter // Lombok: Gera automaticamente todos os métodos Getters para os campos
+@Setter // Lombok: Gera automaticamente todos os métodos Setters para os campos
+@NoArgsConstructor // Lombok: Gera um construtor vazio (exigido pelo JPA)
+@AllArgsConstructor // Lombok: Gera um construtor com todos os campos (útil para testes)
+@Builder // Lombok: Implementa o padrão de projeto Builder para criação fluenta de objetos
 public class WebLog {
 
     @Id
@@ -46,6 +55,7 @@ public class WebLog {
 
     @PrePersist
     protected void onCreate() {
+        // Garante que o registro no banco tenha o horário exato da inserção
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }

@@ -18,6 +18,17 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Serviço de Ingestão de Logs.
+ * 
+ * Teoria para aula:
+ * - Parsing: Processo de ler um arquivo bruto (CSV) e transformá-lo em objetos Java.
+ * - Batch Processing (Processamento em Lote): Em vez de salvar 1 por 1 no banco (o que é lento), 
+ *   acumulamos 500 registros na memória e enviamos todos de uma vez. Isso aumenta 
+ *   drasticamente a performance da ingestão.
+ * - Transacionalidade (@Transactional): Garante que, se houver um erro crítico no meio 
+ *   do processo, o banco não fique com dados parciais ou "sujos".
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -34,10 +45,12 @@ public class LogIngestionService {
 
     @Transactional
     public int[] uploadCsv(MultipartFile file) throws IOException {
+        // 1. Validação inicial: verifica se o arquivo não está vazio
         if (file.isEmpty()) {
             throw new IllegalArgumentException("Uploaded file is empty");
         }
 
+        // 2. Validação de extensão: garante que é um arquivo CSV
         String filename = file.getOriginalFilename();
         if (filename == null || !filename.toLowerCase().endsWith(".csv")) {
             throw new IllegalArgumentException("File must be a CSV file");
@@ -47,6 +60,7 @@ public class LogIngestionService {
         int failed = 0;
         List<WebLog> batch = new ArrayList<>();
 
+        // 3. Abre o leitor de CSV com Try-with-resources para garantir o fechamento do stream
         try (CSVReader reader = new CSVReader(new InputStreamReader(file.getInputStream()))) {
             List<String[]> rows = reader.readAll();
 
@@ -54,27 +68,32 @@ public class LogIngestionService {
                 throw new IllegalArgumentException("CSV file has no data");
             }
 
-            // Skip header row
+            // 4. Resolve o mapeamento dinâmico de colunas baseado no cabeçalho
             String[] header = rows.get(0);
             int[] columnMap = resolveColumnMap(header);
 
+            // 5. Itera sobre as linhas de dados (pulando o cabeçalho no índice 0)
             for (int i = 1; i < rows.size(); i++) {
                 try {
                     String[] row = rows.get(i);
+                    // Converte a linha de texto para o objeto de domínio/entidade
                     WebLog webLog = parseRow(row, columnMap);
                     batch.add(webLog);
                     processed++;
 
+                    // 6. Estratégia de Batch (Lote): Salva de 500 em 500 para performance
                     if (batch.size() >= 500) {
                         webLogRepository.saveAll(batch);
                         batch.clear();
                     }
                 } catch (Exception e) {
+                    // Se uma linha falhar, incrementamos o erro mas continuamos o processo
                     failed++;
                     log.warn("Failed to parse row {}: {}", i, e.getMessage());
                 }
             }
 
+            // 7. Salva o último lote remanescente
             if (!batch.isEmpty()) {
                 webLogRepository.saveAll(batch);
             }
@@ -84,11 +103,11 @@ public class LogIngestionService {
         }
 
         log.info("CSV upload complete: {} processed, {} failed", processed, failed);
-        return new int[]{processed, failed};
+        return new int[] { processed, failed };
     }
 
     private int[] resolveColumnMap(String[] header) {
-        int[] map = new int[]{-1, -1, -1, -1, -1, -1, -1, -1};
+        int[] map = new int[] { -1, -1, -1, -1, -1, -1, -1, -1 };
         // 0=timestamp, 1=method, 2=path, 3=status_code, 4=response_time_ms,
         // 5=user_agent, 6=ip_address, 7=bytes_sent
 
@@ -108,14 +127,14 @@ public class LogIngestionService {
 
         if (map[0] == -1 || map[1] == -1 || map[3] == -1 || map[4] == -1) {
             throw new IllegalArgumentException(
-                    "CSV must contain at least: timestamp, method, status_code, response_time_ms columns"
-            );
+                    "CSV must contain at least: timestamp, method, status_code, response_time_ms columns");
         }
 
         return map;
     }
 
     private WebLog parseRow(String[] row, int[] columnMap) {
+        // Converte cada posição do array de strings para o tipo correto da entidade
         return WebLog.builder()
                 .timestamp(parseTimestamp(row[columnMap[0]].trim()))
                 .method(row[columnMap[1]].trim().toUpperCase())
@@ -124,8 +143,8 @@ public class LogIngestionService {
                 .responseTimeMs(Double.parseDouble(row[columnMap[4]].trim()))
                 .userAgent(columnMap[5] >= 0 && columnMap[5] < row.length ? row[columnMap[5]].trim() : null)
                 .ipAddress(columnMap[6] >= 0 && columnMap[6] < row.length ? row[columnMap[6]].trim() : null)
-                .bytesSent(columnMap[7] >= 0 && columnMap[7] < row.length ?
-                        Integer.parseInt(row[columnMap[7]].trim()) : 0)
+                .bytesSent(
+                        columnMap[7] >= 0 && columnMap[7] < row.length ? Integer.parseInt(row[columnMap[7]].trim()) : 0)
                 .build();
     }
 
@@ -133,7 +152,8 @@ public class LogIngestionService {
         for (DateTimeFormatter formatter : FORMATTERS) {
             try {
                 return LocalDateTime.parse(value, formatter);
-            } catch (DateTimeParseException ignore) {}
+            } catch (DateTimeParseException ignore) {
+            }
         }
         throw new DateTimeParseException("Cannot parse timestamp", value, 0);
     }

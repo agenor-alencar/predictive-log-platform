@@ -1,0 +1,31 @@
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective settings
+[WARNING] Expected root element 'settings' but found 'mirrors' (position: START_TAG seen <mirrors>... @1:10)  @ C:\Users\milto\.m2\settings.xml, line 1, column 10
+[WARNING] 
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -----------------< com.logplatform:predictive-log-api >-----------------
+[INFO] Building Predictive Log Intelligence Platform API 1.0.0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.3.2:clean (default-clean) @ predictive-log-api ---
+[INFO] Deleting C:\projetos\predictive-log-platform\java-api\target
+[INFO] 
+[INFO] --- jacoco:0.8.11:prepare-agent (default) @ predictive-log-api ---
+[INFO] argLine set to -javaagent:C:\\Users\\milto\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.11\\org.jacoco.agent-0.8.11-runtime.jar=destfile=C:\\projetos\\predictive-log-platform\\java-api\\target\\jacoco.exec
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ predictive-log-api ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ predictive-log-api ---
+[INFO] Changes detected - recompiling the module! :source
+[INFO] Compiling 36 source files with javac [debug release 21] to target\classes
+[WARNING] /C:/projetos/predictive-log-platform/java-api/src/main/java/com/logplatform/dto/ErrorPredictionRequest.java:[31,17] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  15.477 s
+[INFO] Finished at: 2026-03-09T12:00:12-03:00
+[INFO] ------------------------------------------------------------------------

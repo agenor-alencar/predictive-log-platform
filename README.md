@@ -4,7 +4,59 @@
 
 ---
 
-## 📐 Arquitetura
+## �️ Stack Tecnológica
+
+### ☕ Back-end (Java)
+| Tecnologia | Versão | Função |
+|------------|--------|--------|
+| Java | 21 LTS | Linguagem principal do back-end |
+| Spring Boot | 3.2.x | Framework REST (Tomcat embutido) |
+| Spring Data JPA | — | ORM com Hibernate 6 para PostgreSQL |
+| Spring Security | — | Autenticação JWT Stateless |
+| Spring WebFlux | — | WebClient reativo para chamadas ao Python |
+| Spring Actuator + Micrometer | — | Métricas e health checks para Prometheus |
+| Spring Kafka | — | Producer/Consumer/Streams para eventos de log |
+| Spring Data Redis | — | Cache de predições e estatísticas |
+| OpenCSV | — | Parser de CSV para upload de logs |
+| Lombok | — | Redução de boilerplate |
+| JaCoCo | — | Cobertura de testes |
+
+### 🐍 Machine Learning (Python)
+| Tecnologia | Versão | Função |
+|------------|--------|--------|
+| Python | 3.12 | Linguagem do serviço de ML |
+| FastAPI + Uvicorn | — | API de alta performance (ASGI) |
+| Scikit-Learn | — | Modelos clássicos (LogReg, RF, Isolation Forest) |
+| XGBoost | — | Gradient Boosting para classificação |
+| Pandas + NumPy | — | Manipulação de dados e cálculos |
+| SciPy | — | Testes estatísticos (Kolmogorov-Smirnov) |
+| Evidently AI | — | Detecção de Data Drift |
+| MLflow SDK | — | Tracking de experimentos e modelos |
+| Joblib | — | Serialização de modelos (.joblib) |
+
+### 💾 Infraestrutura & Dados
+| Tecnologia | Versão | Função |
+|------------|--------|--------|
+| PostgreSQL | 16 | Banco de dados relacional (logs + predições) |
+| Redis | 7 | Cache em memória (TTL 5min predições, 30s stats) |
+| Apache Kafka | 7.6.0 (Confluent) | Streaming de eventos de log em tempo real |
+| Zookeeper | 7.6.0 (Confluent) | Coordenação do cluster Kafka |
+| MLflow Server | — | UI de governança e versionamento de modelos |
+| Prometheus | 2.51.0 | Coleta de métricas (scrape 15s) |
+| Grafana | 10.4.1 | Dashboards de observabilidade |
+| Docker + Docker Compose | — | Containerização e orquestração (9 containers) |
+
+### 🔄 CI/CD (GitHub Actions)
+| Workflow | Arquivo | Função |
+|----------|---------|--------|
+| Deploy | `deploy.yml` | Pipeline de deploy completo |
+| Docker Build | `docker-build.yml` | Build e push de imagens |
+| Java Tests | `java-tests.yml` | Testes unitários + JaCoCo |
+| Python Tests | `python-tests.yml` | pytest + linting |
+
+---
+
+## �📐 Arquitetura
 
 ```mermaid
 graph TB
@@ -14,11 +66,20 @@ graph TB
     end
 
     subgraph "API Java :8080"
+        AUTH["AuthController (JWT)"]
         LC["LogController"]
         SC["StatsController"]
         PC["PredictController"]
         ACT["Actuator /metrics"]
         SEC["Spring Security"]
+        CACHE["Redis Cache"]
+        KP["Kafka Producer"]
+    end
+
+    subgraph "Mensageria"
+        KAFKA["Kafka :9092"]
+        ZK["Zookeeper :2181"]
+        KC["Kafka Consumer"]
     end
 
     subgraph "Serviço ML Python :8000"
@@ -27,14 +88,22 @@ graph TB
         PRT["POST /predict/response-time"]
         DA["POST /detect/anomaly"]
         DM["GET /monitor/drift"]
+        WS["WebSocket Alerts"]
     end
 
     subgraph "Camada de Dados"
         PG["PostgreSQL :5432"]
+        REDIS["Redis :6379"]
         MLF["MLflow :5000"]
-        MOD["Volume Compartilhado /models"]
+        MOD["Volume /models"]
     end
 
+    subgraph "Observabilidade"
+        PROM["Prometheus :9090"]
+        GRAF["Grafana :3000"]
+    end
+
+    CLI --> AUTH
     CLI --> LC
     CLI --> SC
     CLI --> PC
@@ -43,6 +112,13 @@ graph TB
     SWAGGER --> PC
 
     LC --> PG
+    LC --> KP
+    KP --> KAFKA
+    KAFKA --> KC
+    KC --> PG
+    KAFKA --> ZK
+    SC --> CACHE
+    CACHE --> REDIS
     SC --> PG
     PC --> PE
     PC --> PRT
@@ -54,6 +130,10 @@ graph TB
     PRT --> MOD
     DA --> MOD
     DM --> PG
+
+    PROM --> ACT
+    PROM --> PE
+    GRAF --> PROM
 ```
 
 ---
@@ -90,14 +170,23 @@ sequenceDiagram
 sequenceDiagram
     participant U as Usuário
     participant API as API Java
+    participant CACHE as Redis
     participant ML as Serviço ML Python
     participant DB as PostgreSQL
+    participant KAFKA as Kafka
 
     U->>API: POST /predict/error
-    API->>ML: Encaminhar para /predict/error
-    ML->>ML: Carregar modelo + prever
-    ML-->>API: {error_probability, risk_level}
-    API->>DB: Salvar predição
+    API->>CACHE: Verificar cache
+    alt Cache HIT
+        CACHE-->>API: Retorna resultado cacheado
+    else Cache MISS
+        API->>ML: Encaminhar para /predict/error
+        ML->>ML: Carregar modelo + prever
+        ML-->>API: {error_probability, risk_level}
+        API->>CACHE: Armazenar no cache (TTL 5min)
+    end
+    API->>DB: Salvar predição (auditoria)
+    API->>KAFKA: Publicar evento de predição
     API-->>U: Resposta da predição
 ```
 
@@ -126,11 +215,15 @@ docker-compose ps
 **Serviços disponíveis:**
 | Serviço | URL | Descrição |
 |---------|-----|-----------|
-| API Java | http://localhost:8080 | API REST para logs, estatísticas e predições |
-| Swagger UI | http://localhost:8080/swagger-ui.html | Documentação interativa da API |
-| Serviço ML Python | http://localhost:8000/docs | Documentação FastAPI do serviço ML |
-| MLflow | http://localhost:5000 | Interface de rastreamento de modelos |
+| API Java | http://localhost:8080 | API REST principal |
+| Swagger UI | http://localhost:8080/swagger-ui.html | Documentação interativa |
+| Serviço ML Python | http://localhost:8000/docs | Documentação FastAPI |
+| MLflow | http://localhost:5000 | Tracking de modelos |
+| Grafana | http://localhost:3000 | Dashboards (admin/admin) |
+| Prometheus | http://localhost:9090 | Métricas e queries PromQL |
 | PostgreSQL | localhost:5432 | Banco de dados |
+| Redis | localhost:6379 | Cache em memória |
+| Kafka | localhost:9092 | Broker de mensageria |
 
 ### Configuração Inicial (após os containers estarem rodando)
 
@@ -144,7 +237,7 @@ curl -X POST http://localhost:8000/train
 # 3. Fazer upload do CSV para a API Java
 curl -F "file=@data/web_logs.csv" http://localhost:8080/logs/upload
 
-# 4. Consultar estatísticas
+# 4. Consultar estatísticas (cacheadas no Redis por 30s)
 curl http://localhost:8080/stats/summary | python -m json.tool
 ```
 
@@ -153,6 +246,13 @@ curl http://localhost:8080/stats/summary | python -m json.tool
 ## 📡 Referência da API
 
 ### API Java (porta 8080)
+
+#### Autenticação (JWT)
+```bash
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+```
 
 #### Upload de Logs
 ```bash
@@ -247,11 +347,17 @@ curl http://localhost:8000/monitor/drift
 curl http://localhost:8000/monitor/health
 ```
 
-### Métricas do Actuator
+### Métricas e Observabilidade
 ```bash
+# Health check
 curl http://localhost:8080/actuator/health
+
+# Métricas customizadas
 curl http://localhost:8080/actuator/metrics/ml.inference.latency
 curl http://localhost:8080/actuator/metrics/ml.predictions.total
+
+# Endpoint Prometheus
+curl http://localhost:8080/actuator/prometheus
 ```
 
 ---
@@ -284,60 +390,93 @@ mvn test jacoco:report
 
 ```
 predictive-log-platform/
-├── docker-compose.yml
-├── README.md
-├── data/                          # Volume compartilhado de dados
-├── models/                        # Volume compartilhado de modelos
+├── .github/
+│   └── workflows/
+│       ├── deploy.yml                 # Pipeline de deploy
+│       ├── docker-build.yml           # Build de imagens Docker
+│       ├── java-tests.yml             # CI testes Java
+│       └── python-tests.yml           # CI testes Python
+├── data/                              # Volume compartilhado de dados
+├── models/                            # Volume compartilhado de modelos (.joblib)
+├── grafana/
+│   ├── dashboards/
+│   │   └── plip-overview.json         # Dashboard pré-carregado
+│   └── provisioning/
+│       ├── dashboards/
+│       │   └── dashboard.yml          # Provider de dashboards
+│       └── datasources/
+│           └── prometheus.yml         # Datasource Prometheus (auto)
+├── prometheus/
+│   └── prometheus.yml                 # Config de scrape (Java + Python)
 ├── postgres/
-│   └── init.sql                   # Schema do banco de dados
+│   └── init.sql                       # Schema inicial do banco
 ├── mlflow/
-│   └── Dockerfile
+│   └── Dockerfile                     # Imagem do MLflow Server
+├── scripts/
+│   └── deploy.sh                      # Script de deploy
 ├── python-ml-service/
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   ├── app/
-│   │   ├── main.py                # Aplicação FastAPI
-│   │   ├── config.py              # Configurações
-│   │   ├── dataset_generator.py   # Dados sintéticos (5000 registros)
-│   │   ├── feature_engineering.py # Pipeline de features
+│   │   ├── main.py                    # Aplicação FastAPI
+│   │   ├── config.py                  # Configurações
+│   │   ├── dataset_generator.py       # Dados sintéticos (5000 registros)
+│   │   ├── feature_engineering.py     # Pipeline de features
+│   │   ├── scheduler.py              # Agendamento de retreino
 │   │   ├── models/
-│   │   │   ├── classifier.py      # LogReg, RF, XGBoost
-│   │   │   ├── regressor.py       # Linear, RF, GradientBoosting
-│   │   │   └── anomaly.py         # Z-score + Isolation Forest
+│   │   │   ├── classifier.py         # LogReg, RF, XGBoost
+│   │   │   ├── regressor.py          # Linear, RF, GradientBoosting
+│   │   │   └── anomaly.py            # Z-score + Isolation Forest
+│   │   ├── infrastructure/
+│   │   │   ├── mlflow_tracker.py     # Integração MLflow
+│   │   │   └── model_registry.py     # Registro de modelos
 │   │   ├── monitoring/
-│   │   │   └── drift.py           # Drift com Evidently AI
+│   │   │   └── drift.py              # Drift com Evidently AI
 │   │   ├── visualization/
-│   │   │   └── plots.py           # ROC, CM, SHAP, Feature Imp.
+│   │   │   └── plots.py              # ROC, CM, SHAP, Feature Imp.
 │   │   └── routers/
-│   │       ├── train.py           # POST /train
-│   │       ├── predict.py         # POST /predict/*
-│   │       ├── anomaly.py         # POST /detect/anomaly
-│   │       └── monitor.py         # GET /monitor/drift
+│   │       ├── train.py              # POST /train
+│   │       ├── predict.py            # POST /predict/*
+│   │       ├── anomaly.py            # POST /detect/anomaly
+│   │       ├── monitor.py            # GET /monitor/drift + health
+│   │       └── websocket.py          # WebSocket alertas tempo real
 │   └── tests/
-│       ├── test_pipeline.py       # Testes unitários
-│       ├── test_predict.py        # Testes de endpoints
-│       └── test_anomaly.py        # Testes de anomalia
-└── java-api/
-    ├── Dockerfile
-    ├── pom.xml
-    └── src/
-        ├── main/
-        │   ├── java/com/logplatform/
-        │   │   ├── LogPlatformApplication.java
-        │   │   ├── entity/         # WebLog, Prediction
-        │   │   ├── repository/     # Repositórios JPA
-        │   │   ├── service/        # Lógica de negócio
-        │   │   ├── controller/     # Controladores REST
-        │   │   ├── dto/            # DTOs de Request/Response
-        │   │   └── config/         # Security, WebClient, Métricas
-        │   └── resources/
-        │       └── application.yml
-        └── test/
-            ├── java/com/logplatform/
-            │   ├── controller/     # Testes com MockMvc
-            │   └── IntegrationTest.java
-            └── resources/
-                └── application.yml
+│       ├── test_pipeline.py           # Testes unitários do pipeline
+│       ├── test_predict.py            # Testes de endpoints de predição
+│       └── test_anomaly.py            # Testes de detecção de anomalia
+├── java-api/
+│   ├── Dockerfile
+│   ├── pom.xml
+│   └── src/
+│       ├── main/
+│       │   ├── java/com/logplatform/
+│       │   │   ├── LogPlatformApplication.java
+│       │   │   ├── domain/
+│       │   │   │   ├── model/         # WebLogDomain, PredictionResult
+│       │   │   │   ├── port/          # PredictionPort, LogRepository, MlServicePort
+│       │   │   │   └── service/       # PredictionDomainService
+│       │   │   ├── infrastructure/
+│       │   │   │   ├── adapter/       # JpaPredictionAdapter, MlServiceAdapter, JpaLogAdapter
+│       │   │   │   └── kafka/         # KafkaConfig, LogEventProducer, LogEventConsumer, LogStreamProcessor
+│       │   │   ├── entity/            # WebLog, Prediction (JPA Entities)
+│       │   │   ├── repository/        # WebLogRepository, PredictionRepository
+│       │   │   ├── service/           # PredictionService, StatisticsService, LogService
+│       │   │   ├── controller/        # AuthController, LogController, PredictController, StatsController
+│       │   │   ├── dto/               # DTOs de Request/Response
+│       │   │   ├── security/          # JwtTokenProvider, JwtAuthenticationFilter
+│       │   │   └── config/            # SecurityConfig, RedisConfig, MetricsConfig, WebClientConfig
+│       │   └── resources/
+│       │       └── application.yml     # Config: DB, Redis, Kafka, JWT, Actuator
+│       └── test/
+│           ├── java/com/logplatform/  # Testes unitários e MockMvc
+│           └── resources/
+│               └── application.yml     # Config de testes
+├── docker-compose.yml                 # Orquestração de 9 containers
+├── README.md                          # Este arquivo
+├── APPLICATION_GUIDE.md               # Guia detalhado de uso
+├── TECHNOLOGIES.md                    # Dicionário de tecnologias
+├── MLFLOW_GUIDE.md                    # Guia do MLflow
+└── CICD.md                            # Documentação de CI/CD
 ```
 
 ---
@@ -374,11 +513,15 @@ predictive-log-platform/
 
 ## 📊 Monitoramento
 
-- **Métricas Actuator**: `/actuator/metrics` (latência, volume de predições, taxa de erro)
-- **Prometheus**: `/actuator/prometheus`
-- **Drift de dados**: `GET /monitor/drift` (relatórios Evidently AI)
-- **Saúde do modelo**: `GET /monitor/health`
-- **MLflow UI**: http://localhost:5000 (versionamento de modelos, rastreamento de experimentos)
+| Componente | Endpoint / URL | Função |
+|------------|----------------|--------|
+| Actuator Health | `/actuator/health` | Status de saúde da API Java |
+| Actuator Metrics | `/actuator/metrics` | Latência, volume, taxa de erro |
+| Prometheus | `/actuator/prometheus` | Métricas em formato Prometheus |
+| Grafana | http://localhost:3000 | Dashboards visuais (admin/admin) |
+| Drift Monitor | `GET /monitor/drift` | Relatórios Evidently AI |
+| Model Health | `GET /monitor/health` | Status dos modelos carregados |
+| MLflow UI | http://localhost:5000 | Versionamento de modelos |
 
 ---
 

@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: logadmin
       POSTGRES_PASSWORD: logadmin123
     ports:
-      - "5432:5432"
+      - "0.0.0.0:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -27,12 +27,13 @@ services:
       dockerfile: Dockerfile
     container_name: plip-mlflow
     ports:
-      - "5000:5000"
+      - "0.0.0.0:5000:5000"
     volumes:
       - mlflow_data:/mlflow
       - ./models:/models
     environment:
       MLFLOW_TRACKING_URI: "sqlite:///mlflow/mlflow.db"
+      WERKZEUG_TRUSTED_HOSTS: "*"
     networks:
       - logplatform-net
 
@@ -42,7 +43,7 @@ services:
       dockerfile: Dockerfile
     container_name: plip-python-ml
     ports:
-      - "8000:8000"
+      - "0.0.0.0:8000:8000"
     volumes:
       - ./models:/app/models
       - ./data:/app/data
@@ -65,7 +66,7 @@ services:
       dockerfile: Dockerfile
     container_name: plip-java-api
     ports:
-      - "8080:8080"
+      - "0.0.0.0:8080:8080"
     environment:
       SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/logplatform"
       SPRING_DATASOURCE_USERNAME: logadmin
@@ -78,6 +79,8 @@ services:
       postgres:
         condition: service_healthy
       python-ml:
+        condition: service_started
+      kafka:
         condition: service_started
     networks:
       - logplatform-net
@@ -95,12 +98,14 @@ services:
     image: confluentinc/cp-kafka:7.6.0
     container_name: plip-kafka
     ports:
-      - "9092:9092"
+      - "0.0.0.0:9092:9092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      # Para acesso externo, altere 172.18.128.243 pelo IP da sua máquina
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://172.18.128.243:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
@@ -113,7 +118,7 @@ services:
     image: redis:7-alpine
     container_name: plip-redis
     ports:
-      - "6379:6379"
+      - "0.0.0.0:6379:6379"
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -126,7 +131,7 @@ services:
     image: prom/prometheus:v2.51.0
     container_name: plip-prometheus
     ports:
-      - "9090:9090"
+      - "0.0.0.0:9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
@@ -141,7 +146,7 @@ services:
     image: grafana/grafana:10.4.1
     container_name: plip-grafana
     ports:
-      - "3000:3000"
+      - "0.0.0.0:3000:3000"
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin

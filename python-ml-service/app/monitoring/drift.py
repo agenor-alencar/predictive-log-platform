@@ -117,16 +117,16 @@ def _parse_evidently_report(report_dict: dict, columns: list[str]) -> dict:
         for metric in metrics:
             metric_result = metric.get("result", {})
             if "drift_share" in metric_result:
-                result["dataset_drift"] = metric_result.get("dataset_drift", False)
-                result["drift_share"] = metric_result.get("drift_share", 0.0)
-                result["n_drifted_columns"] = metric_result.get("number_of_drifted_columns", 0)
-                result["n_columns"] = metric_result.get("number_of_columns", 0)
+                result["dataset_drift"] = bool(metric_result.get("dataset_drift", False))
+                result["drift_share"] = float(metric_result.get("drift_share", 0.0))
+                result["n_drifted_columns"] = int(metric_result.get("number_of_drifted_columns", 0))
+                result["n_columns"] = int(metric_result.get("number_of_columns", 0))
             elif "column_name" in metric_result:
                 col_name = metric_result["column_name"]
                 result["column_drifts"][col_name] = {
-                    "drift_detected": metric_result.get("drift_detected", False),
-                    "drift_score": metric_result.get("drift_score", 0.0),
-                    "stattest_name": metric_result.get("stattest_name", "unknown"),
+                    "drift_detected": bool(metric_result.get("drift_detected", False)),
+                    "drift_score": float(metric_result.get("drift_score", 0.0)),
+                    "stattest_name": str(metric_result.get("stattest_name", "unknown")),
                 }
     except Exception as e:
         logger.warning(f"Error parsing Evidently report: {e}")
@@ -152,7 +152,7 @@ def _manual_drift_detection(
             curr_vals = curr[col].dropna()
             if len(ref_vals) > 0 and len(curr_vals) > 0:
                 ks_stat, p_value = stats.ks_2samp(ref_vals, curr_vals)
-                drift_detected = p_value < 0.05
+                drift_detected = bool(p_value < 0.05)
                 if drift_detected:
                     n_drifted += 1
                 column_drifts[col] = {
@@ -162,11 +162,11 @@ def _manual_drift_detection(
                     "ks_statistic": float(ks_stat),
                 }
 
-    dataset_drift = n_drifted > len(columns) * 0.5
+    dataset_drift = bool(n_drifted > len(columns) * 0.5)
 
     return {
         "dataset_drift": dataset_drift,
-        "drift_share": n_drifted / max(len(columns), 1),
+        "drift_share": float(n_drifted / max(len(columns), 1)),
         "n_drifted_columns": n_drifted,
         "n_columns": len(columns),
         "column_drifts": column_drifts,

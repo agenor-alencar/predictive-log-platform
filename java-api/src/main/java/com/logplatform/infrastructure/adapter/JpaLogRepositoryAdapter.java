@@ -11,8 +11,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Infrastructure adapter: implements domain's LogRepository using JPA.
- * Translates between domain model (WebLogDomain) and JPA entity (WebLog).
+ * Adaptador de Infraestrutura: Implementa a porta 'LogRepository' via JPA.
+ * 
+ * Teoria para aula:
+ * - Ports & Adapters: O Domínio define "O QUE" deve ser feito (interface), 
+ *   e este Adaptador define "COMO" é feito usando uma tecnologia específica (JPA/Hibernate).
+ * - Tradução: Esta classe serve como uma "ponte" que converte WebLogDomain (Domínio puro) 
+ *   em WebLog (Entidade JPA) e vice-versa.
  */
 @Component
 @RequiredArgsConstructor
@@ -22,6 +27,7 @@ public class JpaLogRepositoryAdapter implements LogRepository {
 
     @Override
     public void saveAll(List<WebLogDomain> logs) {
+        // Converte a lista de domínio para entidades JPA antes de salvar
         List<WebLog> entities = logs.stream()
                 .map(this::toEntity)
                 .collect(Collectors.toList());

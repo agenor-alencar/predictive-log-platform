@@ -4,8 +4,13 @@ import com.logplatform.domain.model.WebLogDomain;
 import java.util.List;
 
 /**
- * Port (interface) for log persistence.
- * Domain defines the contract — infrastructure implements it.
+ * Port (interface) para persistência de logs.
+ * 
+ * Teoria para aula:
+ * - Camada de Domínio: O "coração" da aplicação. Não deve conhecer detalhes técnicos 
+ *   como SQL ou NoSQL.
+ * - Port (Porta): Define o CONTRATO. O domínio diz: "Eu preciso salvar logs em massa", 
+ *   e a infraestrutura (Adapter) deve descobrir como fazer isso.
  */
 public interface LogRepository {
 

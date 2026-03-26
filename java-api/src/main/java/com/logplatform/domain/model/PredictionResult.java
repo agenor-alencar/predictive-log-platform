@@ -1,8 +1,12 @@
 package com.logplatform.domain.model;
 
 /**
- * Pure domain model for ML prediction results.
- * No framework dependencies.
+ * Modelo de Domínio para Resultados de Predição de ML.
+ * 
+ * Teoria para aula:
+ * - Domain Model: Representa o "coração" do negócio. É uma classe Java pura (POJO) 
+ *   que não deve depender de frameworks (como Jackson ou Spring).
+ * - Isso garante que a lógica de negócio seja testável e isolada de mudanças tecnológicas.
  */
 public class PredictionResult {
 

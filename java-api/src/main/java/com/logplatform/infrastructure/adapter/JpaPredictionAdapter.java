@@ -8,7 +8,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * Infrastructure adapter: persists prediction audit records via JPA.
+ * Adaptador de Infraestrutura: Persiste registros de auditoria de predição via JPA.
+ * 
+ * Teoria para aula:
+ * - Auditoria: Salvar o input e o output de cada chamada de ML é fundamental para 
+ *   governança e transparência em sistemas de IA.
  */
 @Component
 @RequiredArgsConstructor

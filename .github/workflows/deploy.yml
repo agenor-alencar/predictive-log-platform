@@ -1,0 +1,107 @@
+name: Deploy to Production
+
+on:
+  workflow_run:
+    workflows: ["Python Tests", "Java Tests", "Docker Build"]
+    types: [completed]
+    branches: [main]
+
+  # Deploy manual via botão no GitHub Actions
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # Só executa se:
+    # 1. Foi dispatch manual, OU
+    # 2. O workflow que disparou concluiu com sucesso
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - name: 🚀 Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            echo "========================================="
+            echo "🚀 Iniciando deploy — $(date)"
+            echo "========================================="
+
+            # Navegar até o diretório do projeto
+            cd ~/predictive-log-platform || exit 1
+
+            # Atualizar código
+            echo "📥 Atualizando código..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Parar serviços antigos
+            echo "⏹️  Parando serviços..."
+            docker compose down --remove-orphans
+
+            # Rebuild e iniciar
+            echo "🔨 Construindo e iniciando serviços..."
+            docker compose up --build -d
+
+            # Aguardar containers estabilizarem
+            echo "⏳ Aguardando serviços (30s)..."
+            sleep 30
+
+            # Health checks
+            echo "🩺 Verificando saúde dos serviços..."
+            echo ""
+
+            # Verificar PostgreSQL
+            if docker exec plip-postgres pg_isready -U logadmin -d logplatform > /dev/null 2>&1; then
+              echo "✅ PostgreSQL — OK"
+            else
+              echo "❌ PostgreSQL — FALHOU"
+            fi
+
+            # Verificar Python ML
+            if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+              echo "✅ Python ML Service — OK"
+            else
+              echo "❌ Python ML Service — FALHOU"
+            fi
+
+            # Verificar Java API
+            if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
+              echo "✅ Java API — OK"
+            else
+              echo "❌ Java API — FALHOU"
+            fi
+
+            # Verificar MLflow
+            if curl -sf http://localhost:5000 > /dev/null 2>&1; then
+              echo "✅ MLflow — OK"
+            else
+              echo "❌ MLflow — FALHOU"
+            fi
+
+            # Verificar Grafana
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "✅ Grafana — OK"
+            else
+              echo "❌ Grafana — FALHOU"
+            fi
+
+            echo ""
+            echo "📊 Status dos containers:"
+            docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+
+            echo ""
+            echo "========================================="
+            echo "✅ Deploy concluído — $(date)"
+            echo "========================================="
+
+            # Limpar imagens antigas para economizar disco
+            echo "🧹 Limpando imagens não utilizadas..."
+            docker image prune -f

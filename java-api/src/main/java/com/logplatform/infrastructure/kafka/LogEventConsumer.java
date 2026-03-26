@@ -11,7 +11,13 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * Consumes raw log events from Kafka, persists to database via domain port.
+ * Consumidor de Eventos Kafka.
+ * 
+ * Teoria para aula:
+ * - Consumo Assíncrono: A API Java "escuta" o tópico do Kafka. Quando um novo log 
+ *   chega, ele é processado e salvo no banco automaticamente.
+ * - @KafkaListener: Anotação que transforma o método em um "ouvinte" de mensagens, 
+ *   permitindo que o sistema processe dados em background sem travar o usuário.
  */
 @Component
 @RequiredArgsConstructor

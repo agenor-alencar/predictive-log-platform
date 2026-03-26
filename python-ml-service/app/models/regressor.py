@@ -64,7 +64,7 @@ class RegressorPipeline:
 
             y_pred = model.predict(X_test)
 
-            rmse = float(np.sqrt(mean_squared_error(y_test, y_pred)))
+            rmse = float(mean_squared_error(y_test, y_pred) ** 0.5)
             mae = float(mean_absolute_error(y_test, y_pred))
             r2 = float(r2_score(y_test, y_pred))
 

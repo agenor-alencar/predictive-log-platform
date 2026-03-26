@@ -9,9 +9,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Pure domain service for log ingestion.
- * No Spring, no JPA, no framework — only Java SE.
- * Parses CSV rows into domain objects with validation.
+ * Serviço de Domínio Puro para Ingestão de Logs.
+ * 
+ * Teoria para aula:
+ * - Domain Service: Contém lógica de negócio que não pertence a uma entidade específica.
+ * - Pureza: Esta classe não usa Spring (@Service), JPA ou qualquer framework. É Java SE puro.
+ * - Por que ser puro? Isso garante que a lógica de "como ler um log" seja 100% testável 
+ *   e portátil para qualquer outro sistema, sem depender de "canais extras".
  */
 public class LogIngestor {
 

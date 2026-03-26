@@ -11,6 +11,19 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Controller responsável pelas Predições de Machine Learning.
+ * 
+ * Teoria para aula:
+ * - Este controller atua como um "Orquestrador" ou "Gateway".
+ * - Ele não executa a inteligência artificial aqui (quem faz isso é o Python), 
+ *   mas ele gerencia o fluxo: recebe o pedido -> consulta o cache -> chama o ML -> 
+ *   salva para auditoria -> retorna ao cliente.
+ * 
+ * Algoritmos envolvidos (no lado Python):
+ * 1. Classificação (Erro): Prediz se a requisição vai falhar (sim/não + probabilidade).
+ * 2. Regressão (Tempo): Prediz um valor numérico (quantos ms vai demorar).
+ */
 @RestController
 @RequestMapping("/predict")
 @RequiredArgsConstructor
@@ -20,43 +33,39 @@ public class PredictController {
     private final PredictionService predictionService;
 
     @PostMapping("/error")
-    @Operation(
-            summary = "Predict error probability",
-            description = "Predicts the probability of an HTTP error (4xx/5xx) based on method, hour, and historical response time"
-    )
+    @Operation(summary = "Predizer probabilidade de erro", description = "Prediz a chance de erro HTTP (4xx/5xx) baseado no método, hora e histórico")
     public ResponseEntity<ErrorPredictionResponse> predictError(
             @Valid @RequestBody ErrorPredictionRequest request) {
         try {
+            // 1. Chama o serviço de predição (que orquestra cache, auditoria e motor Python)
             ErrorPredictionResponse response = predictionService.predictError(request);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
+            // 2. Trata falhas de comunicação ou erros no motor de ML
             return ResponseEntity.internalServerError().body(
                     ErrorPredictionResponse.builder()
                             .errorProbability(-1)
                             .riskLevel("UNKNOWN")
                             .modelUsed("error: " + e.getMessage())
-                            .build()
-            );
+                            .build());
         }
     }
 
     @PostMapping("/response-time")
-    @Operation(
-            summary = "Predict response time",
-            description = "Predicts the expected response time with 95% confidence interval"
-    )
+    @Operation(summary = "Predizer tempo de resposta", description = "Prediz o tempo de resposta esperado com intervalo de confiança de 95%")
     public ResponseEntity<ResponseTimePrediction> predictResponseTime(
             @Valid @RequestBody ErrorPredictionRequest request) {
         try {
+            // 1. Solicita a predição de valor numérico (Regressão) ao motor de IA
             ResponseTimePrediction response = predictionService.predictResponseTime(request);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
+            // 2. Fallback em caso de erro no serviço de ML
             return ResponseEntity.internalServerError().body(
                     ResponseTimePrediction.builder()
                             .predictedResponseTimeMs(-1)
                             .modelUsed("error: " + e.getMessage())
-                            .build()
-            );
+                            .build());
         }
     }
 }
