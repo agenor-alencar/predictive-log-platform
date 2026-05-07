@@ -108,6 +108,14 @@ $NETWORK
 
 O valor esperado e algo como `predictive-log-platform_logplatform-net`.
 
+Defina tambem estas variaveis fixas para nao repetir o comando inteiro a cada teste:
+
+```powershell
+$K6_SCRIPT = "${PWD}\scripts_didaticos\k6_predict_test.js"
+$LOGIN_URL = "http://java-api:8080/auth/login"
+$TARGET_URL = "http://java-api:8080/predict/error"
+```
+
 ### Baseline sem carga
 
 Antes de gerar trafego, observe Prometheus e Grafana por 1 minuto.
@@ -123,7 +131,14 @@ Voce deve ver:
 Execute este comando e acompanhe os paineis enquanto ele roda:
 
 ```powershell
-docker run --rm --network $NETWORK -e ITERATIONS=200 -e VUS=20 -e LOGIN_URL=http://java-api:8080/auth/login -e TARGET_URL=http://java-api:8080/predict/error -v ${PWD}\scripts_didaticos\k6_predict_test.js:/scripts/test.js:ro grafana/k6 run /scripts/test.js
+docker run --rm `
+   --network $NETWORK `
+   -e ITERATIONS=200 `
+   -e VUS=20 `
+   -e LOGIN_URL=$LOGIN_URL `
+   -e TARGET_URL=$TARGET_URL `
+   -v "${K6_SCRIPT}:/scripts/test.js:ro" `
+   grafana/k6 run /scripts/test.js
 ```
 
 Objetivo didatico:
@@ -152,7 +167,14 @@ Objetivo:
 Se quiser um meio-termo antes do estresse pesado, use:
 
 ```powershell
-docker run --rm --network $NETWORK -e ITERATIONS=1000 -e VUS=50 -e LOGIN_URL=http://java-api:8080/auth/login -e TARGET_URL=http://java-api:8080/predict/error -v ${PWD}\scripts_didaticos\k6_predict_test.js:/scripts/test.js:ro grafana/k6 run /scripts/test.js
+docker run --rm `
+   --network $NETWORK `
+   -e ITERATIONS=1000 `
+   -e VUS=50 `
+   -e LOGIN_URL=$LOGIN_URL `
+   -e TARGET_URL=$TARGET_URL `
+   -v "${K6_SCRIPT}:/scripts/test.js:ro" `
+   grafana/k6 run /scripts/test.js
 ```
 
 Objetivo didatico:
@@ -165,7 +187,14 @@ Objetivo didatico:
 Agora execute o teste pesado:
 
 ```powershell
-docker run --rm --network $NETWORK -e ITERATIONS=10000 -e VUS=200 -e LOGIN_URL=http://java-api:8080/auth/login -e TARGET_URL=http://java-api:8080/predict/error -v ${PWD}\scripts_didaticos\k6_predict_test.js:/scripts/test.js:ro grafana/k6 run /scripts/test.js
+docker run --rm `
+   --network $NETWORK `
+   -e ITERATIONS=10000 `
+   -e VUS=200 `
+   -e LOGIN_URL=$LOGIN_URL `
+   -e TARGET_URL=$TARGET_URL `
+   -v "${K6_SCRIPT}:/scripts/test.js:ro" `
+   grafana/k6 run /scripts/test.js
 ```
 
 Objetivo didatico:
@@ -510,6 +539,9 @@ docker compose up -d
 
 ```powershell
 $NETWORK = docker network ls --format "{{.Name}}" | Select-String "logplatform-net" | Select-Object -First 1 | ForEach-Object { $_.ToString().Trim() }
+$K6_SCRIPT = "${PWD}\scripts_didaticos\k6_predict_test.js"
+$LOGIN_URL = "http://java-api:8080/auth/login"
+$TARGET_URL = "http://java-api:8080/predict/error"
 ```
 
 3. Abrir logs e monitoramento
@@ -537,7 +569,14 @@ while ($true) { docker stats plip-java-api --no-stream; Start-Sleep -Seconds 2 }
 6. Rodar teste leve
 
 ```powershell
-docker run --rm --network $NETWORK -e ITERATIONS=200 -e VUS=20 -e LOGIN_URL=http://java-api:8080/auth/login -e TARGET_URL=http://java-api:8080/predict/error -v ${PWD}\scripts_didaticos\k6_predict_test.js:/scripts/test.js:ro grafana/k6 run /scripts/test.js
+docker run --rm `
+   --network $NETWORK `
+   -e ITERATIONS=200 `
+   -e VUS=20 `
+   -e LOGIN_URL=$LOGIN_URL `
+   -e TARGET_URL=$TARGET_URL `
+   -v "${K6_SCRIPT}:/scripts/test.js:ro" `
+   grafana/k6 run /scripts/test.js
 ```
 
 7. Observar no Prometheus:
@@ -555,7 +594,14 @@ histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{j
 9. Rodar teste pesado
 
 ```powershell
-docker run --rm --network $NETWORK -e ITERATIONS=10000 -e VUS=200 -e LOGIN_URL=http://java-api:8080/auth/login -e TARGET_URL=http://java-api:8080/predict/error -v ${PWD}\scripts_didaticos\k6_predict_test.js:/scripts/test.js:ro grafana/k6 run /scripts/test.js
+docker run --rm `
+   --network $NETWORK `
+   -e ITERATIONS=10000 `
+   -e VUS=200 `
+   -e LOGIN_URL=$LOGIN_URL `
+   -e TARGET_URL=$TARGET_URL `
+   -v "${K6_SCRIPT}:/scripts/test.js:ro" `
+   grafana/k6 run /scripts/test.js
 ```
 
 10. Observar erros e saturacao:
@@ -631,7 +677,17 @@ Comece por aqui:
 
 ```powershell
 $NETWORK = docker network ls --format "{{.Name}}" | Select-String "logplatform-net" | Select-Object -First 1 | ForEach-Object { $_.ToString().Trim() }
-docker run --rm --network $NETWORK -e ITERATIONS=200 -e VUS=20 -e LOGIN_URL=http://java-api:8080/auth/login -e TARGET_URL=http://java-api:8080/predict/error -v ${PWD}\scripts_didaticos\k6_predict_test.js:/scripts/test.js:ro grafana/k6 run /scripts/test.js
+$K6_SCRIPT = "${PWD}\scripts_didaticos\k6_predict_test.js"
+$LOGIN_URL = "http://java-api:8080/auth/login"
+$TARGET_URL = "http://java-api:8080/predict/error"
+docker run --rm `
+   --network $NETWORK `
+   -e ITERATIONS=200 `
+   -e VUS=20 `
+   -e LOGIN_URL=$LOGIN_URL `
+   -e TARGET_URL=$TARGET_URL `
+   -v "${K6_SCRIPT}:/scripts/test.js:ro" `
+   grafana/k6 run /scripts/test.js
 ```
 
 Depois compare:
