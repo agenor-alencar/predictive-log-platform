@@ -38,6 +38,13 @@ mlflow/mlflow.db
 .DS_Store
 Thumbs.db
 
+# Artefatos de testes e exports locais
+logs/
+prometheus_export.json
+index1.html
+token.txt
+*.txt
+
 # Logs
 *.log
 
