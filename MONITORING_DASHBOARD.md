@@ -16,8 +16,7 @@ Voce vai executar dois cenarios:
 2. Teste de estresse/DDoS didatico
    Objetivo: aumentar muito a carga para identificar degradacao, erros e gargalos.
 
-Os testes sao executados com k6 dentro de container Docker, usando o runner:
-[scripts_didaticos/run_full_test_docker.ps1](c:\projetos\predictive-log-platform\scripts_didaticos\run_full_test_docker.ps1)
+Os testes sao executados com k6 dentro de container Docker.
 
 O script de carga usado pelo k6 esta em:
 [scripts_didaticos/k6_predict_test.js](c:\projetos\predictive-log-platform\scripts_didaticos\k6_predict_test.js)
@@ -80,56 +79,110 @@ Pare esse monitor com `Ctrl+C` quando quiser.
 
 ---
 
-## Fase 2: Execucao Oficial dos Testes
+## Fase 2: Execucao Manual por Etapas
 
-### Caminho oficial da aula
+### O que e o k6
 
-Rode o fluxo completo com o script Docker-first:
+- `k6` e a ferramenta que gera carga na API
+- ele simula usuarios virtuais acessando o endpoint varias vezes
+- aqui ele roda dentro de container Docker, sem exigir instalacao local
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts_didaticos\run_full_test_docker.ps1
-```
+### O que significam os parametros
 
-Esse comando executa automaticamente:
+- `VUs` = virtual users, ou usuarios virtuais concorrentes
+- `iterations` = numero total de execucoes do teste
+- `req/s` = requisicoes por segundo
+- `5xx` = erros internos do servidor, como 500, 502, 503 e 504
+- `latencia media` = tempo medio de resposta
+- `P95` = 95% das requisicoes ficaram abaixo desse tempo; os 5% restantes foram mais lentos
+- `P99` = mostra os 1% piores casos
 
-1. teste basico
-2. pausa de recuperacao
-3. teste de estresse/DDoS didatico
-4. coleta de logs
-5. export de metricas do Prometheus
+### Preparar a rede Docker usada pelo k6
 
-### Execucao mais leve para demonstracao rapida
-
-Se quiser uma execucao mais curta em sala:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts_didaticos\run_full_test_docker.ps1 -BasicIterations 200 -BasicVus 20 -DdosIterations 2000 -DdosVus 100 -RecoverySeconds 15
-```
-
-### Execucao intermediaria
+No PowerShell, descubra a rede do compose:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts_didaticos\run_full_test_docker.ps1 -BasicIterations 1000 -BasicVus 50 -DdosIterations 10000 -DdosVus 200 -RecoverySeconds 30
+$NETWORK = docker network ls --format "{{.Name}}" | Select-String "logplatform-net" | Select-Object -First 1 | ForEach-Object { $_.ToString().Trim() }
+$NETWORK
 ```
 
-### O que o script gera
+O valor esperado e algo como `predictive-log-platform_logplatform-net`.
 
-Ao final, os artefatos ficam em uma pasta como:
+### Baseline sem carga
 
-```text
-logs/test_results_YYYYMMDD_HHMMSS/
+Antes de gerar trafego, observe Prometheus e Grafana por 1 minuto.
+
+Voce deve ver:
+
+- `req/s` muito perto de zero
+- `5xx` igual a zero
+- uso de memoria e conexoes sem picos
+
+### Etapa 1: teste basico manual
+
+Execute este comando e acompanhe os paineis enquanto ele roda:
+
+```powershell
+docker run --rm --network $NETWORK -e ITERATIONS=200 -e VUS=20 -e LOGIN_URL=http://java-api:8080/auth/login -e TARGET_URL=http://java-api:8080/predict/error -v ${PWD}\scripts_didaticos\k6_predict_test.js:/scripts/test.js:ro grafana/k6 run /scripts/test.js
 ```
 
-Arquivos principais:
+Objetivo didatico:
 
-- `basic_test.log`
-- `ddos_test.log`
-- `basic_test_summary.json`
-- `ddos_test_summary.json`
-- `java-api.log`
-- `postgres.log`
-- `kafka.log`
-- `prometheus_query.json`
+- mostrar o comportamento normal do sistema
+- comparar depois com o estresse pesado
+
+O que observar:
+
+- `Taxa HTTP (Java API)` sobe um pouco
+- `Erros HTTP 5xx (Java API)` permanece em zero
+- `Latencia P95 HTTP (Java API)` sobe pouco
+- `Conexoes Ativas ao Banco` sobem e voltam
+
+### Pausa para leitura
+
+Depois do teste basico, espere de 30 a 60 segundos olhando os graficos.
+
+Objetivo:
+
+- mostrar recuperacao do sistema
+- deixar claro o que e baseline e o que e degradacao
+
+### Etapa 2: teste intermediario manual
+
+Se quiser um meio-termo antes do estresse pesado, use:
+
+```powershell
+docker run --rm --network $NETWORK -e ITERATIONS=1000 -e VUS=50 -e LOGIN_URL=http://java-api:8080/auth/login -e TARGET_URL=http://java-api:8080/predict/error -v ${PWD}\scripts_didaticos\k6_predict_test.js:/scripts/test.js:ro grafana/k6 run /scripts/test.js
+```
+
+Objetivo didatico:
+
+- mostrar aumento de carga sem ir direto para o limite
+- ajudar a turma a perceber tendencia de latencia e conexoes
+
+### Etapa 3: teste de estresse/DDoS didatico
+
+Agora execute o teste pesado:
+
+```powershell
+docker run --rm --network $NETWORK -e ITERATIONS=10000 -e VUS=200 -e LOGIN_URL=http://java-api:8080/auth/login -e TARGET_URL=http://java-api:8080/predict/error -v ${PWD}\scripts_didaticos\k6_predict_test.js:/scripts/test.js:ro grafana/k6 run /scripts/test.js
+```
+
+Objetivo didatico:
+
+- forcar degradacao observavel
+- identificar se o gargalo aparece em latencia, banco, memoria ou erros
+
+### O que cada etapa deve mostrar
+
+- baseline: quase sem trafego, sem erro, sem pico
+- teste basico: pequena subida de trafego, sem erro relevante
+- teste intermediario: aumento perceptivel de latencia e conexoes
+- teste pesado: subida forte de `req/s`, possivel crescimento de `5xx`, P95 maior e sinais de saturacao
+
+### Runner opcional
+
+O arquivo [scripts_didaticos/run_full_test_docker.ps1](c:\projetos\predictive-log-platform\scripts_didaticos\run_full_test_docker.ps1) continua existindo para automacao e coleta de artefatos, mas nao e o caminho principal da aula porque esconde as etapas.
 
 ---
 
@@ -191,8 +244,11 @@ sum(rate(http_server_requests_seconds_count{job="plip-java-api"}[1m]))
 
 Como interpretar:
 
-- valor baixo no teste basico = comportamento normal
-- valor muito alto no teste pesado = carga chegando na API
+- unidade: `req/s` = requisicoes por segundo
+- exemplo: `0.0667 req/s` significa aproximadamente `4 requisicoes por minuto`
+- abaixo de `1 req/s` = carga muito baixa
+- entre `1` e `20 req/s` = carga leve a moderada para demonstracao
+- acima de `20 req/s` = ja existe pressao mais clara no ambiente de aula
 - queda brusca durante a carga = a API pode estar deixando de responder
 
 ### Query 2: Taxa de erros 5xx da API Java
@@ -206,7 +262,8 @@ sum(rate(http_server_requests_seconds_count{job="plip-java-api",status=~"5.."}[1
 Como interpretar:
 
 - `0` no teste basico e normal
-- aumento no teste pesado indica degradacao real
+- qualquer valor acima de `0` durante estresse ja indica degradacao real
+- valores persistentes acima de `1 erro/s` merecem destaque em aula
 - se continuar alto por muito tempo, a API nao recuperou bem
 
 ### Query 3: Latencia media da API Java
@@ -220,7 +277,12 @@ sum(rate(http_server_requests_seconds_count{job="plip-java-api"}[1m]))
 
 Como interpretar:
 
-- valor baixo no teste basico = normal
+- essa query retorna o valor em segundos
+- exemplo: `0.3989` significa aproximadamente `399 ms`
+- abaixo de `0.1` = muito bom
+- entre `0.1` e `0.5` = aceitavel
+- acima de `0.5` = comeca a chamar atencao
+- acima de `1` = ruim para uso interativo
 - crescimento continuo no teste pesado = fila, banco ou CPU saturando
 
 ### Query 4: P95 da API Java
@@ -238,6 +300,8 @@ Como interpretar:
 
 - P95 mostra a experiencia dos piores 5% das requisicoes
 - se a media parece boa mas o P95 explode, ha cauda de latencia
+- se o P95 estiver muito acima da media, parte dos usuarios esta sofrendo mais do que a media sugere
+- se aparecer `No data`, isso nao significa zero; significa que nao houve serie suficiente para calcular naquele momento
 
 ### Query 5: Memoria JVM da API Java
 
@@ -442,7 +506,13 @@ Como interpretar em aula:
 docker compose up -d
 ```
 
-2. Abrir logs e monitoramento
+2. Descobrir a rede do Docker Compose
+
+```powershell
+$NETWORK = docker network ls --format "{{.Name}}" | Select-String "logplatform-net" | Select-Object -First 1 | ForEach-Object { $_.ToString().Trim() }
+```
+
+3. Abrir logs e monitoramento
 
 ```powershell
 docker compose logs -f java-api
@@ -460,15 +530,17 @@ docker compose logs -f kafka | Select-String -Pattern 'error|warn'
 while ($true) { docker stats plip-java-api --no-stream; Start-Sleep -Seconds 2 }
 ```
 
-3. Abrir Grafana e Prometheus
+4. Abrir Grafana e Prometheus
 
-4. Rodar teste leve
+5. Observar baseline sem carga por cerca de 1 minuto
+
+6. Rodar teste leve
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts_didaticos\run_full_test_docker.ps1 -BasicIterations 200 -BasicVus 20 -DdosIterations 1 -DdosVus 1 -RecoverySeconds 1
+docker run --rm --network $NETWORK -e ITERATIONS=200 -e VUS=20 -e LOGIN_URL=http://java-api:8080/auth/login -e TARGET_URL=http://java-api:8080/predict/error -v ${PWD}\scripts_didaticos\k6_predict_test.js:/scripts/test.js:ro grafana/k6 run /scripts/test.js
 ```
 
-5. Observar no Prometheus:
+7. Observar no Prometheus:
 
 ```promql
 sum(rate(http_server_requests_seconds_count{job="plip-java-api"}[1m]))
@@ -478,13 +550,15 @@ sum(rate(http_server_requests_seconds_count{job="plip-java-api"}[1m]))
 histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job="plip-java-api"}[1m])))
 ```
 
-6. Rodar teste pesado
+8. Esperar 30 a 60 segundos e comparar a recuperacao
+
+9. Rodar teste pesado
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts_didaticos\run_full_test_docker.ps1 -BasicIterations 1 -BasicVus 1 -DdosIterations 10000 -DdosVus 200 -RecoverySeconds 5
+docker run --rm --network $NETWORK -e ITERATIONS=10000 -e VUS=200 -e LOGIN_URL=http://java-api:8080/auth/login -e TARGET_URL=http://java-api:8080/predict/error -v ${PWD}\scripts_didaticos\k6_predict_test.js:/scripts/test.js:ro grafana/k6 run /scripts/test.js
 ```
 
-7. Observar erros e saturacao:
+10. Observar erros e saturacao:
 
 ```promql
 sum(rate(http_server_requests_seconds_count{job="plip-java-api",status=~"5.."}[1m]))
@@ -498,7 +572,7 @@ hikaricp_connections_active{job="plip-java-api"}
 jvm_memory_used_bytes{job="plip-java-api",area="heap"} / 1024 / 1024
 ```
 
-8. Comparar resultados entre teste leve e teste pesado
+11. Comparar baseline, teste leve e teste pesado
 
 ---
 
@@ -556,7 +630,8 @@ Conclusao:
 Comece por aqui:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts_didaticos\run_full_test_docker.ps1 -BasicIterations 200 -BasicVus 20 -DdosIterations 2000 -DdosVus 100 -RecoverySeconds 15
+$NETWORK = docker network ls --format "{{.Name}}" | Select-String "logplatform-net" | Select-Object -First 1 | ForEach-Object { $_.ToString().Trim() }
+docker run --rm --network $NETWORK -e ITERATIONS=200 -e VUS=20 -e LOGIN_URL=http://java-api:8080/auth/login -e TARGET_URL=http://java-api:8080/predict/error -v ${PWD}\scripts_didaticos\k6_predict_test.js:/scripts/test.js:ro grafana/k6 run /scripts/test.js
 ```
 
 Depois compare:

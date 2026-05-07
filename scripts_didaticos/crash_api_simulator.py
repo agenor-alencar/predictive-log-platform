@@ -3,6 +3,7 @@ import aiohttp
 import time
 import json
 import random
+import os
 
 # Este script foi criado para fins didáticos: demonstrar como um pico irreal 
 # de acessos derruba uma API REST síncrona/banco relacional que não possui 
@@ -23,9 +24,9 @@ else:
     print(f"❌ Falha ao obter token: {resp.text}")
     TOKEN = ""
 
-# Quantidade absurda de requisições simultâneas para esgotar o Connection Pool do PostgreSQL
-# ou a memória da JVM.
-NUM_REQUESTS = 50000 
+# Quantidade de requisições simultâneas.
+# Pode ser sobrescrita por variável de ambiente, ex.: NUM_REQUESTS=1000
+NUM_REQUESTS = int(os.getenv("NUM_REQUESTS", "50000"))
 
 headers = {
     "Content-Type": "application/json",
