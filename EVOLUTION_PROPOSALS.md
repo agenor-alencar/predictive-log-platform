@@ -805,10 +805,11 @@ python-ml-service/app/
 
 | Dupla | Sprint 1 ? Fundação (todos fazem) | Sprint 2 ? Construção | Sprint 3 ? Features |
 |---|---|---|---|
-| **1** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-07 Rate Limiting | M-13 Re-treino Automático |
-| **2** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-03 Mapper Layer | M-10 Testes Integração Java |
-| **3** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-04 CORS + Network | M-14 Alertas WebSocket |
-| **4** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-09 Health Checks + M-06 Soft Delete | M-05 Paginação |
-| **5** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-11 Testes Python | M-08 Filtros Estatísticas + M-12 Histórico de Predições |
+| **Geovana, Hugo e Lucas ** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-07 Rate Limiting | M-13 Re-treino Automático |
+| **Agenor e Arthur** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-03 Mapper Layer | M-10 Testes Integração Java |
+| **Matheus e Matheus** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-04 CORS + Network | M-14 Alertas WebSocket |
+| **Marcos e João Paulo 
+** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-09 Health Checks + M-06 Soft Delete | M-05 Paginação |
+| **Gabriel e Gabriel ** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-11 Testes Python | M-08 Filtros Estatísticas + M-12 Histórico de Predições |
 
 > Sprint 1 é igual para todas as duplas: as duas entregas base sem as quais nada mais funciona.
