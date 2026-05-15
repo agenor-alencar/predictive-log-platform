@@ -798,43 +798,17 @@ python-ml-service/app/
 
 ---
 
-## ATRIBUIÇÃO DAS 6 DUPLAS ? 3 SPRINTS PARALELOS
+## ATRIBUIÇÃO DAS 5 DUPLAS ? 3 SPRINTS PARALELOS
 
-> Regra simples: **toda dupla termina o Sprint atual antes de avançar para o próximo.**
-> Cada sprint começa com todas as 6 duplas trabalhando ao mesmo tempo.
-> Os módulos foram distribuídos para que cada dupla tenha seu próprio bloqueio a remover no Sprint 1.
+> Regra: **toda dupla termina o sprint atual antes de avançar para o próximo.**
+> Sprint 1 é a base de todos ? ninguém avança sem ele estar pronto.
 
-| Dupla | Sprint 1 ? Fundação | Sprint 2 ? Construção | Sprint 3 ? Features |
+| Dupla | Sprint 1 ? Fundação (todos fazem) | Sprint 2 ? Construção | Sprint 3 ? Features |
 |---|---|---|---|
-| **1** | M-01 GlobalExceptionHandler | M-07 Rate Limiting | ? |
-| **2** | M-02 ModelRegistry Python | M-11 Testes Python | M-13 Re-treino Automático |
-| **3** | M-04 CORS + Network | M-14 Alertas WebSocket | ? |
-| **4** | M-09 Health Checks | M-03 Mapper Layer | M-10 Testes Integração Java |
-| **5** | M-06 Soft Delete (DB + entity)¹ | M-06 endpoint HTTP + M-05 Paginação² | M-08 Filtros Estatísticas |
-| **6** | M-14 ConnectionManager (infra)³ | M-12 Histórico de Predições² | ? |
+| **1** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-07 Rate Limiting | M-13 Re-treino Automático |
+| **2** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-03 Mapper Layer | M-10 Testes Integração Java |
+| **3** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-04 CORS + Network | M-14 Alertas WebSocket |
+| **4** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-09 Health Checks + M-06 Soft Delete | M-05 Paginação |
+| **5** | M-01 GlobalExceptionHandler + M-02 ModelRegistry Python | M-11 Testes Python | M-08 Filtros Estatísticas + M-12 Histórico de Predições |
 
-> ¹ Sprint 1 da Dupla 5: apenas migration SQL + `deletedAt` + `@SQLRestriction` ? sem controller, sem pré-requisito externo.
-> ² Depende de M-01 (Dupla 1) e M-03 (Dupla 4) estarem mergeados. Por isso ficam no Sprint 2 e 3.
-> ³ Sprint 1 da Dupla 6: `ConnectionManager`, rota `/ws/alerts`, schema de mensagem, testes unitários ? sem dependência do `ModelRegistry`.
-
----
-
-### Dependências entre sprints
-
-```
-Sprint 1 fecha com todos mergeados ? Sprint 2 começa
-
-Dupla 1 mergea M-01 ??? desbloqueia Dupla 4 (M-03) e Dupla 5 (M-05 + endpoint M-06)
-Dupla 2 mergea M-02 ??? desbloqueia Dupla 3 (M-14 integração) e Dupla 6 (M-12 partial)
-Dupla 4 mergea M-03 ??? desbloqueia Dupla 5 (M-05) e a própria Dupla 4 (M-10)
-```
-         Criar DTOs: WebLogResponse, PredictionResponse, PagedResponse
-         Criar testes de contrato (endpoints ainda não implementados ? TDD)
-         Adicionar queries JPQL paginadas em WebLogRepository e PredictionRepository
-         (repositórios não dependem de M-01 ou M-03)
-
-Após M-01 + M-03 mergearem:
-         M-05  LogQueryController, PredictionQueryController
-         M-12  Histórico de predições com filtro por tipo
-         M-08  GET /stats/summary com filtros de período e método
-```
+> Sprint 1 é igual para todas as duplas: as duas entregas base sem as quais nada mais funciona.
