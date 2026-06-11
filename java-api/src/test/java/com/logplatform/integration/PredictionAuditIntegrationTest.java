@@ -16,8 +16,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
+/**
+ * Teste de integração da Auditoria de Predições (Módulo M-10).
+ *
+ * Teoria para aula:
+ * - Toda predição é registrada no banco para auditoria (comparar previsto x real no futuro).
+ *   Aqui validamos que, ao chamar POST /predict/error, a predição é de fato salva no PostgreSQL.
+ * - Decisão de arquitetura: mockamos a PORTA de domínio (MlServicePort), não o WebClient.
+ *   Isso isola o teste do serviço Python de ML (que não sobe aqui), mas mantém REAL todo o
+ *   restante do fluxo: controller -> PredictionService -> porta de persistência -> banco.
+ *   É o ponto de mock correto numa arquitetura hexagonal (ports & adapters).
+ */
 class PredictionAuditIntegrationTest extends TestContainersConfig {
 
+    // Substitui a chamada ao serviço de ML por uma resposta controlada
     @MockBean
     private MlServicePort mlServicePort;
 
@@ -26,11 +38,13 @@ class PredictionAuditIntegrationTest extends TestContainersConfig {
 
     @BeforeEach
     void cleanDatabase() {
+        // Isolamento entre testes: zera a tabela de predições
         predictionRepository.deleteAll();
     }
 
     @Test
     void predictError_savesAuditRecordInDatabase() {
+        // Configura o ML "fake" para devolver uma predição conhecida
         when(mlServicePort.predictError(anyString(), anyInt(), anyDouble(), anyInt()))
                 .thenReturn(PredictionResult.errorPrediction(0.15, "LOW", "RandomForestClassifier"));
 
@@ -49,11 +63,13 @@ class PredictionAuditIntegrationTest extends TestContainersConfig {
                 ErrorPredictionResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        // O ponto central do teste: a predição foi gravada para auditoria
         assertThat(predictionRepository.count()).isEqualTo(1);
     }
 
     @Test
     void predictError_returnsCorrectPredictionValues() {
+        // Verifica que os valores retornados pela API batem com o que o ML "previu"
         PredictionResult fakeResult = PredictionResult.errorPrediction(0.87, "CRITICAL", "XGBoostClassifier");
         fakeResult.setInferenceTimeMs(5.2);
         when(mlServicePort.predictError(anyString(), anyInt(), anyDouble(), anyInt()))
@@ -80,6 +96,7 @@ class PredictionAuditIntegrationTest extends TestContainersConfig {
 
     @Test
     void predictError_multipleCalls_savesAllAuditRecords() {
+        // Três chamadas devem gerar três registros de auditoria distintos
         when(mlServicePort.predictError(anyString(), anyInt(), anyDouble(), anyInt()))
                 .thenReturn(PredictionResult.errorPrediction(0.10, "LOW", "LogisticRegression"));
 

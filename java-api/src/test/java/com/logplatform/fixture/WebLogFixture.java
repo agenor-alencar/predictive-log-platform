@@ -7,12 +7,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Factory for WebLog entities used in integration tests.
+ * Fábrica de entidades WebLog para os testes de integração.
+ *
+ * Teoria para aula:
+ * - Factory de teste: concentra a criação de objetos de domínio usados nos cenários.
+ *   Quando o teste precisa de "um log qualquer", chama aqui em vez de repetir o builder.
+ * - Isso deixa os testes mais legíveis: o foco fica no QUE está sendo validado, não em
+ *   COMO montar o objeto.
  */
 public final class WebLogFixture {
 
+    // Construtor privado: classe utilitária, não instanciável
     private WebLogFixture() {}
 
+    // Um log de sucesso "padrão" (HTTP 200)
     public static WebLog aWebLog() {
         return WebLog.builder()
                 .timestamp(LocalDateTime.of(2025, 6, 1, 10, 0))
@@ -26,6 +34,7 @@ public final class WebLogFixture {
                 .build();
     }
 
+    // Um log de erro (HTTP 500) com tempo de resposta alto — útil para validar taxa de erro
     public static WebLog anErrorLog() {
         return WebLog.builder()
                 .timestamp(LocalDateTime.of(2025, 6, 1, 14, 30))
@@ -39,6 +48,10 @@ public final class WebLogFixture {
                 .build();
     }
 
+    /**
+     * Gera uma lista de logs variados (métodos, status e tempos diferentes).
+     * A cada 10 registros insere um erro 500, para que as estatísticas tenham dados realistas.
+     */
     public static List<WebLog> aListOf(int count) {
         List<WebLog> logs = new ArrayList<>();
         LocalDateTime base = LocalDateTime.of(2025, 6, 1, 8, 0);

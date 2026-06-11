@@ -15,6 +15,14 @@ import org.springframework.http.ResponseEntity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Teste de integração das Estatísticas Descritivas (Módulo M-10).
+ *
+ * Teoria para aula:
+ * - Valida o fluxo: ingestão de logs no banco -> StatisticsService.computeSummary() -> agregações
+ *   SQL reais no PostgreSQL. Também checa o endpoint HTTP GET /stats/summary de ponta a ponta.
+ * - Cobre o caso de banco vazio (deve retornar zeros, sem quebrar) e o caso com dados.
+ */
 class StatisticsIntegrationTest extends TestContainersConfig {
 
     @Autowired
@@ -29,8 +37,8 @@ class StatisticsIntegrationTest extends TestContainersConfig {
     @BeforeEach
     void cleanDatabase() {
         webLogRepository.deleteAll();
-        // O cache "statistics" usa chave fixa 'summary' (TTL 30s) — sem limpar,
-        // o resultado de um teste vazaria para o seguinte
+        // Atenção: o cache "statistics" usa chave fixa 'summary' (TTL 30s). Se não limparmos,
+        // o resultado calculado num teste vazaria para o próximo, mascarando os dados reais.
         Cache statisticsCache = cacheManager.getCache("statistics");
         if (statisticsCache != null) {
             statisticsCache.clear();
@@ -39,6 +47,7 @@ class StatisticsIntegrationTest extends TestContainersConfig {
 
     @Test
     void computeSummary_afterIngestion_returnsTotalRecordsGreaterThanZero() {
+        // Critério M-10: após ingestão, computeSummary() retorna totalRecords > 0
         webLogRepository.saveAll(WebLogFixture.aListOf(50));
 
         StatsSummary summary = statisticsService.computeSummary();
@@ -48,12 +57,14 @@ class StatisticsIntegrationTest extends TestContainersConfig {
 
     @Test
     void computeSummary_afterIngestion_calculatesStatisticsCorrectly() {
+        // Valida que as métricas estatísticas são calculadas de forma coerente
         webLogRepository.saveAll(WebLogFixture.aListOf(100));
 
         StatsSummary summary = statisticsService.computeSummary();
 
         assertThat(summary.getMeanResponseTime()).isGreaterThan(0);
         assertThat(summary.getMedianResponseTime()).isGreaterThan(0);
+        // P95 (percentil 95) nunca pode ser menor que a média num conjunto crescente
         assertThat(summary.getPercentile95ResponseTime()).isGreaterThanOrEqualTo(summary.getMeanResponseTime());
         assertThat(summary.getErrorRate()).isGreaterThan(0);
         assertThat(summary.getMethodFrequency()).isNotEmpty();
@@ -62,6 +73,7 @@ class StatisticsIntegrationTest extends TestContainersConfig {
 
     @Test
     void computeSummary_emptyDatabase_returnsZeroedStats() {
+        // Sem dados, o resumo deve vir zerado (e não lançar exceção)
         StatsSummary summary = statisticsService.computeSummary();
 
         assertThat(summary.getTotalRecords()).isZero();
@@ -71,6 +83,7 @@ class StatisticsIntegrationTest extends TestContainersConfig {
 
     @Test
     void statsEndpoint_afterIngestion_returns200WithData() {
+        // Mesma validação, mas pela porta de entrada real: o endpoint HTTP
         webLogRepository.saveAll(WebLogFixture.aListOf(20));
 
         ResponseEntity<StatsSummary> response = restTemplate.getForEntity(
@@ -83,6 +96,7 @@ class StatisticsIntegrationTest extends TestContainersConfig {
 
     @Test
     void statsEndpoint_emptyDatabase_returns200WithZeros() {
+        // Banco vazio pelo endpoint: deve responder 200 com totais zerados
         ResponseEntity<StatsSummary> response = restTemplate.getForEntity(
                 baseUrl + "/stats/summary", StatsSummary.class);
 
